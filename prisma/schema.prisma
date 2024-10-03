@@ -1,0 +1,95 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+enum ChangeType {
+  INCREASE
+  DECREASE
+}
+
+model User {
+  id            Int             @id @default(autoincrement())
+  username      String          @unique
+  email         String          @unique
+  password      String
+  role          Role            @default(STAFF)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  createdProducts Product[]      @relation("ProductCreatedBy")
+  updatedProducts Product[]      @relation("ProductUpdatedBy")
+  inventoryLogs   InventoryLog[] @relation("InventoryLogChangedBy")
+}
+
+model Category {
+  id             Int        @id @default(autoincrement())
+  name           String
+  description    String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  parentCategory   Category?  @relation("CategoryParent", fields: [parentCategoryId], references: [id])
+  parentCategoryId Int?
+  subCategories    Category[] @relation("CategoryParent")
+
+  products       Product[]
+}
+
+model Product {
+  id             Int             @id @default(autoincrement())
+  name           String
+  sku            String          @unique
+  description    String?
+  price          Float
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  createdById    Int
+  updatedById    Int?
+
+  category       Category        @relation(fields: [categoryId], references: [id])
+  categoryId     Int
+
+  inventory      Inventory?
+  inventoryLogs  InventoryLog[]
+
+  createdBy      User            @relation("ProductCreatedBy", fields: [createdById], references: [id])
+  updatedBy      User?           @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
+}
+
+model Inventory {
+  id             Int       @id @default(autoincrement())
+  quantity       Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  product        Product   @relation(fields: [productId], references: [id])
+  productId      Int       @unique
+}
+
+model InventoryLog {
+  id              Int          @id @default(autoincrement())
+  changeType      ChangeType
+  quantityChanged Int
+  previousQuantity Int
+  newQuantity     Int
+  reason          String?
+  createdAt       DateTime     @default(now())
+  changedById     Int
+
+  product         Product      @relation(fields: [productId], references: [id])
+  productId       Int
+
+  changedBy       User         @relation("InventoryLogChangedBy", fields: [changedById], references: [id])
+}
